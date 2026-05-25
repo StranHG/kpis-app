@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, ActivityIndicator, Dimensions } from 'react-native';
-import { VictoryBar, VictoryChart, VictoryTheme, VictoryPie, VictoryAxis } from 'victory-native';
 
-const API = 'http://10.168.104.158:3000';
+const API = 'http://192.168.0.9:3000';
 const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen() {
@@ -37,22 +36,13 @@ export default function HomeScreen() {
     </View>
   );
 
-  const pieData = [
-    { x: 'Completados', y: 100 - Number(cancelaciones?.porcentaje || 0), color: '#22c55e' },
-    { x: 'Cancelados', y: Number(cancelaciones?.porcentaje || 0), color: '#ef4444' },
-  ];
-
-  const barData = topRestaurantes.map((r, i) => ({
-    x: r.nombre.substring(0, 10),
-    y: Number(r.total_pedidos),
-  }));
+  const maxPedidos = Math.max(...topRestaurantes.map(r => Number(r.total_pedidos)));
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>DiDi Food</Text>
       <Text style={styles.subtitle}>Panel gerencial</Text>
 
-      {/* KPIs tarjetas */}
       <View style={styles.row}>
         <View style={[styles.card, styles.halfCard]}>
           <Text style={styles.label}>Total pedidos</Text>
@@ -69,42 +59,37 @@ export default function HomeScreen() {
         <Text style={styles.valueLarge}>${Number(ingresos).toLocaleString()}</Text>
       </View>
 
-      {/* Gráfica pastel cancelaciones */}
       <View style={styles.card}>
         <Text style={styles.label}>Tasa de cancelación</Text>
-        <Text style={styles.cancelPct}>{cancelaciones?.porcentaje}% cancelados</Text>
-        <VictoryPie
-          data={pieData}
-          colorScale={pieData.map(d => d.color)}
-          width={screenWidth - 80}
-          height={220}
-          innerRadius={60}
-          labels={({ datum }) => `${datum.x}\n${datum.y.toFixed(1)}%`}
-          style={{ labels: { fill: '#94a3b8', fontSize: 11 } }}
-        />
+        <View style={styles.row}>
+          <View style={styles.pieSlice}>
+            <View style={[styles.dot, { backgroundColor: '#22c55e' }]} />
+            <Text style={styles.pieLabel}>Completados</Text>
+            <Text style={styles.pieValue}>{(100 - Number(cancelaciones?.porcentaje)).toFixed(1)}%</Text>
+          </View>
+          <View style={styles.pieSlice}>
+            <View style={[styles.dot, { backgroundColor: '#ef4444' }]} />
+            <Text style={styles.pieLabel}>Cancelados</Text>
+            <Text style={styles.pieValue}>{cancelaciones?.porcentaje}%</Text>
+          </View>
+        </View>
+        <View style={styles.barContainer}>
+          <View style={[styles.barFill, { width: `${100 - Number(cancelaciones?.porcentaje)}%`, backgroundColor: '#22c55e' }]} />
+          <View style={[styles.barFill, { width: `${cancelaciones?.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+        </View>
       </View>
 
-      {/* Gráfica barras top restaurantes */}
       <View style={styles.card}>
         <Text style={styles.label}>Top 5 restaurantes</Text>
-        <VictoryChart
-          theme={VictoryTheme.material}
-          width={screenWidth - 80}
-          height={260}
-          domainPadding={20}
-        >
-          <VictoryAxis
-            style={{ tickLabels: { fill: '#94a3b8', fontSize: 9, angle: -20 } }}
-          />
-          <VictoryAxis dependentAxis
-            style={{ tickLabels: { fill: '#94a3b8', fontSize: 9 } }}
-          />
-          <VictoryBar
-            data={barData}
-            style={{ data: { fill: '#FF6B35', borderRadius: 4 } }}
-            animate={{ duration: 500 }}
-          />
-        </VictoryChart>
+        {topRestaurantes.map((r, i) => (
+          <View key={i} style={styles.barRow}>
+            <Text style={styles.barLabel} numberOfLines={1}>{r.nombre.substring(0, 12)}</Text>
+            <View style={styles.barTrack}>
+              <View style={[styles.barFillRest, { width: `${(Number(r.total_pedidos) / maxPedidos) * 100}%` }]} />
+            </View>
+            <Text style={styles.barValue}>{Number(r.total_pedidos).toLocaleString()}</Text>
+          </View>
+        ))}
       </View>
     </ScrollView>
   );
@@ -119,8 +104,18 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12, marginBottom: 0 },
   card: { backgroundColor: '#1e293b', borderRadius: 16, padding: 20, marginBottom: 16 },
   halfCard: { flex: 1 },
-  label: { fontSize: 12, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase' },
+  label: { fontSize: 12, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase' },
   value: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   valueLarge: { fontSize: 32, fontWeight: 'bold', color: '#FF6B35' },
-  cancelPct: { fontSize: 16, color: '#ef4444', marginBottom: 8 },
+  barContainer: { flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden', marginTop: 12 },
+  barFill: { height: 12 },
+  pieSlice: { flex: 1, alignItems: 'center' },
+  dot: { width: 10, height: 10, borderRadius: 5, marginBottom: 4 },
+  pieLabel: { fontSize: 11, color: '#94a3b8' },
+  pieValue: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  barLabel: { width: 80, fontSize: 11, color: '#94a3b8' },
+  barTrack: { flex: 1, height: 8, backgroundColor: '#0f172a', borderRadius: 4, overflow: 'hidden', marginHorizontal: 8 },
+  barFillRest: { height: 8, backgroundColor: '#FF6B35', borderRadius: 4 },
+  barValue: { width: 50, fontSize: 11, color: '#94a3b8', textAlign: 'right' },
 });
