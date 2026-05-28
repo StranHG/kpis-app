@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
 import { router } from 'expo-router';
+import { Brand } from '@/constants/theme';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -25,7 +26,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>🛵</Text>
+      <Image source={require('@/assets/images/repartidor.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>DiDi Food</Text>
       <Text style={styles.subtitle}>Panel gerencial</Text>
 
@@ -34,7 +35,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Correo"
-          placeholderTextColor="#475569"
+          placeholderTextColor={Brand.subtext}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -45,7 +46,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Contraseña"
-          placeholderTextColor="#475569"
+          placeholderTextColor={Brand.subtext}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -65,14 +66,15 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a', padding: 30, justifyContent: 'center' },
-  logo: { fontSize: 60, textAlign: 'center', marginBottom: 16 },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#FF6B35', textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#94a3b8', textAlign: 'center', marginBottom: 48 },
-  form: { backgroundColor: '#1e293b', borderRadius: 20, padding: 24 },
-  label: { fontSize: 13, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase' },
-  input: { backgroundColor: '#0f172a', borderRadius: 10, padding: 14, color: '#fff', marginBottom: 20, fontSize: 15 },
-  button: { backgroundColor: '#FF6B35', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
+  container: { flex: 1, backgroundColor: Brand.bg, padding: 30, justifyContent: 'center' },
+
+  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 32, fontWeight: 'bold', color: Brand.accent, textAlign: 'center' },
+  subtitle: { fontSize: 16, color: Brand.subtext, textAlign: 'center', marginBottom: 48 },
+  form: { backgroundColor: Brand.card, borderRadius: 20, padding: 24, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  label: { fontSize: 13, color: Brand.subtext, marginBottom: 8, textTransform: 'uppercase' },
+  input: { backgroundColor: Brand.bg, borderRadius: 10, padding: 14, color: Brand.text, marginBottom: 20, fontSize: 15, borderWidth: 1, borderColor: Brand.border },
+  button: { backgroundColor: Brand.accent, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  hint: { fontSize: 11, color: '#475569', textAlign: 'center', marginTop: 20, lineHeight: 18 },
+  hint: { fontSize: 11, color: Brand.subtext, textAlign: 'center', marginTop: 20, lineHeight: 18 },
 });
