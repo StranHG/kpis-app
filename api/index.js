@@ -1124,12 +1124,6 @@ app.get('/productos/combos-sugeridos', async (req, res) => {
         LEFT JOIN pedidos p ON p.id_restaurante = r.id_restaurante
         GROUP BY r.id_restaurante, r.nombre, r.tipo_cocina
       ),
-      bottom_rest AS (
-        SELECT *, ROW_NUMBER() OVER (ORDER BY ingresos_total ASC) AS rn
-        FROM ventas_restaurante
-        WHERE total_pedidos > 0
-        LIMIT 5
-      ),
       ventas_producto AS (
         SELECT
           pr.id_producto,
@@ -1137,18 +1131,28 @@ app.get('/productos/combos-sugeridos', async (req, res) => {
           pr.categoria,
           pr.precio,
           pr.id_restaurante,
-          COALESCE(SUM(dp.cantidad)::INT, 0) AS unidades_vendidas,
-          ROW_NUMBER() OVER (PARTITION BY pr.id_restaurante ORDER BY COALESCE(SUM(dp.cantidad), 0) DESC) AS rank_mejor,
-          ROW_NUMBER() OVER (PARTITION BY pr.id_restaurante ORDER BY COALESCE(SUM(dp.cantidad), 0) ASC)  AS rank_peor
+          COUNT(DISTINCT CASE WHEN ped.estatus_pedido = 'Entregado' THEN ped.id_pedido END)::INT AS pedidos_con_producto
         FROM productos pr
         LEFT JOIN detalle_pedidos dp ON dp.id_producto = pr.id_producto
+        LEFT JOIN pedidos ped        ON ped.id_pedido  = dp.id_pedido
         GROUP BY pr.id_producto, pr.nombre_producto, pr.categoria, pr.precio, pr.id_restaurante
+        HAVING COUNT(DISTINCT CASE WHEN ped.estatus_pedido = 'Entregado' THEN ped.id_pedido END) > 0
       ),
-      estrella AS (
-        SELECT * FROM ventas_producto WHERE rank_mejor = 1
+      ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (PARTITION BY id_restaurante ORDER BY pedidos_con_producto DESC) AS rank_mejor,
+          ROW_NUMBER() OVER (PARTITION BY id_restaurante ORDER BY pedidos_con_producto ASC)  AS rank_peor
+        FROM ventas_producto
       ),
-      complemento AS (
-        SELECT * FROM ventas_producto WHERE rank_peor = 1
+      estrella    AS (SELECT * FROM ranked WHERE rank_mejor = 1),
+      complemento AS (SELECT * FROM ranked WHERE rank_peor  = 1),
+      bottom_rest AS (
+        SELECT vr.*, ROW_NUMBER() OVER (ORDER BY vr.ingresos_total ASC) AS rn
+        FROM ventas_restaurante vr
+        WHERE vr.total_pedidos > 0
+          AND EXISTS (SELECT 1 FROM estrella e WHERE e.id_restaurante = vr.id_restaurante)
+        ORDER BY vr.ingresos_total ASC
+        LIMIT 5
       )
       SELECT
         br.rn AS combo_num,
@@ -1156,15 +1160,15 @@ app.get('/productos/combos-sugeridos', async (req, res) => {
         br.tipo_cocina,
         br.ingresos_total AS ingresos_restaurante,
         br.total_pedidos  AS pedidos_restaurante,
-        e.producto        AS estrella,
-        e.categoria       AS cat_estrella,
-        e.precio          AS precio_estrella,
-        e.unidades_vendidas AS ventas_estrella,
-        c.producto        AS complemento,
-        c.categoria       AS cat_complemento,
-        c.precio          AS precio_complemento,
-        c.unidades_vendidas AS ventas_complemento,
-        ROUND(((e.precio + c.precio) * 0.85)::NUMERIC, 2) AS precio_combo_sugerido,
+        e.producto             AS estrella,
+        e.categoria            AS cat_estrella,
+        e.precio               AS precio_estrella,
+        e.pedidos_con_producto AS pedidos_estrella,
+        c.producto             AS complemento,
+        c.categoria            AS cat_complemento,
+        c.precio               AS precio_complemento,
+        c.pedidos_con_producto AS pedidos_complemento,
+        ROUND(((e.precio + COALESCE(c.precio, 0)) * 0.85)::NUMERIC, 2) AS precio_combo_sugerido,
         15 AS descuento_pct
       FROM bottom_rest br
       JOIN estrella    e ON e.id_restaurante = br.id_restaurante
@@ -1174,22 +1178,94 @@ app.get('/productos/combos-sugeridos', async (req, res) => {
     `);
 
     res.json(rows.map(r => ({
-      combo_num:             parseInt(r.combo_num),
-      restaurante:           r.restaurante,
-      tipo_cocina:           r.tipo_cocina,
+      combo_num:             parseInt(r.combo_num) || 0,
+      restaurante:           r.restaurante ?? '',
+      tipo_cocina:           r.tipo_cocina ?? '',
       ingresos_restaurante:  parseFloat(r.ingresos_restaurante) || 0,
       pedidos_restaurante:   parseInt(r.pedidos_restaurante) || 0,
-      estrella:              r.estrella,
-      cat_estrella:          r.cat_estrella,
-      precio_estrella:       parseFloat(r.precio_estrella),
-      ventas_estrella:       parseInt(r.ventas_estrella),
-      complemento:           r.complemento,
-      cat_complemento:       r.cat_complemento,
-      precio_complemento:    parseFloat(r.precio_complemento),
-      ventas_complemento:    parseInt(r.ventas_complemento) || 0,
+      estrella:              r.estrella ?? null,
+      cat_estrella:          r.cat_estrella ?? '',
+      precio_estrella:       parseFloat(r.precio_estrella) || 0,
+      pedidos_estrella:      parseInt(r.pedidos_estrella) || 0,
+      complemento:           r.complemento ?? null,
+      cat_complemento:       r.cat_complemento ?? '',
+      precio_complemento:    parseFloat(r.precio_complemento) || 0,
+      pedidos_complemento:   parseInt(r.pedidos_complemento) || 0,
       precio_combo_sugerido: parseFloat(r.precio_combo_sugerido) || 0,
-      descuento_pct:         parseInt(r.descuento_pct),
+      descuento_pct:         parseInt(r.descuento_pct) || 15,
     })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── OPORTUNIDADES DE HORARIO ────────────────────────────────────────────────
+
+app.get('/oportunidades/horario', async (req, res) => {
+  try {
+    const DIAS = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+
+    const [horasRes, prodRes] = await Promise.all([
+      pool.query(`
+        WITH demanda AS (
+          SELECT
+            EXTRACT(DOW  FROM fecha_pedido)::INT AS dia_num,
+            EXTRACT(HOUR FROM fecha_pedido)::INT AS hora,
+            COUNT(*) FILTER (WHERE estatus_pedido = 'Entregado')::INT AS pedidos
+          FROM pedidos
+          WHERE EXTRACT(HOUR FROM fecha_pedido) BETWEEN 7 AND 23
+          GROUP BY 1, 2
+        ),
+        prom AS (SELECT ROUND(AVG(pedidos)::NUMERIC, 1) AS promedio FROM demanda)
+        SELECT d.dia_num, d.hora, d.pedidos, p.promedio,
+          ROUND((d.pedidos::NUMERIC / NULLIF(p.promedio, 0) * 100)::NUMERIC, 1) AS pct_del_promedio
+        FROM demanda d, prom p
+        ORDER BY d.pedidos ASC
+        LIMIT 3
+      `),
+      pool.query(`
+        SELECT
+          pr.nombre_producto,
+          pr.categoria,
+          pr.precio,
+          r.nombre      AS restaurante,
+          r.tipo_cocina,
+          r.colonia,
+          COUNT(DISTINCT CASE WHEN ped.estatus_pedido = 'Entregado' THEN ped.id_pedido END)::INT AS pedidos_entregados
+        FROM productos pr
+        JOIN restaurantes r ON r.id_restaurante = pr.id_restaurante
+        LEFT JOIN detalle_pedidos dp ON dp.id_producto = pr.id_producto
+        LEFT JOIN pedidos ped        ON ped.id_pedido  = dp.id_pedido
+        GROUP BY pr.id_producto, pr.nombre_producto, pr.categoria, pr.precio, r.nombre, r.tipo_cocina, r.colonia
+        HAVING COUNT(DISTINCT CASE WHEN ped.estatus_pedido = 'Entregado' THEN ped.id_pedido END) > 0
+        ORDER BY pedidos_entregados ASC
+        LIMIT 5
+      `),
+    ]);
+
+    res.json({
+      horas: horasRes.rows.map(r => {
+        const diaNum = parseInt(r.dia_num);
+        const hora   = parseInt(r.hora);
+        return {
+          dia:              DIAS[diaNum] ?? `Dia ${diaNum}`,
+          hora,
+          label:            `${String(hora).padStart(2,'0')}:00 – ${String(hora+1).padStart(2,'0')}:00`,
+          pedidos:          parseInt(r.pedidos) || 0,
+          promedio:         parseFloat(r.promedio) || 0,
+          pct_del_promedio: parseFloat(r.pct_del_promedio) || 0,
+        };
+      }),
+      productos: prodRes.rows.map(r => ({
+        nombre_producto:    r.nombre_producto ?? '',
+        categoria:          r.categoria ?? '',
+        precio:             parseFloat(r.precio) || 0,
+        restaurante:        r.restaurante ?? '',
+        tipo_cocina:        r.tipo_cocina ?? '',
+        colonia:            r.colonia ?? '',
+        pedidos_entregados: parseInt(r.pedidos_entregados) || 0,
+      })),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

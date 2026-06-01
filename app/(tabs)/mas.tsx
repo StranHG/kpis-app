@@ -43,7 +43,7 @@ export default function MasScreen() {
   const [conductores,  setConductores]  = useState<any>(null);
   const [reactivacion, setReactivacion] = useState<any[]>([]);
   const [topVendidos,  setTopVendidos]  = useState<any[]>([]);
-  const [combos,       setCombos]       = useState<any[]>([]);
+  const [oportunidades, setOportunidades] = useState<{ horas: any[], productos: any[] }>({ horas: [], productos: [] });
   const [rfm,          setRfm]          = useState<any[]>([]);
   const [adquisicion,  setAdquisicion]  = useState<any[]>([]);
   const [loading,             setLoading]             = useState(true);
@@ -107,8 +107,8 @@ export default function MasScreen() {
       fetchJSON(`${API}/productos/top-vendidos?limit=10`).catch(() => []),
       fetchJSON(`${API}/usuarios/segmentos`).catch(() => []),
       fetchJSON(`${API}/usuarios/adquisicion`).catch(() => []),
-      fetchJSON(`${API}/productos/combos-sugeridos`).catch(() => []),
-    ]).then(([mp, cat, prem, ing, ped, ingr, cancel, tiempo, rest, coc, cond, reac, tv, rfmData, adq, cmb]) => {
+      fetchJSON(`${API}/oportunidades/horario`).catch(() => ({ horas: [], productos: [] })),
+    ]).then(([mp, cat, prem, ing, ped, ingr, cancel, tiempo, rest, coc, cond, reac, tv, rfmData, adq, opor]) => {
       setMetodosPago(mp); setCategorias(cat); setPremium(prem); setIngCocina(ing);
       setKpisResumen({ pedidos: ped, ingresos: ingr, cancelaciones: cancel, tiempo });
       setTopRest(rest); setPorCocina(coc); setConductores(cond);
@@ -116,7 +116,7 @@ export default function MasScreen() {
       setTopVendidos(Array.isArray(tv) ? tv : []);
       setRfm(Array.isArray(rfmData) ? rfmData : []);
       setAdquisicion(Array.isArray(adq) ? adq : []);
-      setCombos(Array.isArray(cmb) ? cmb : []);
+      setOportunidades(opor?.horas ? opor : { horas: [], productos: [] });
       setLoading(false);
     }).catch(() => { setError('Error cargando datos'); setLoading(false); });
   }, []);
@@ -214,17 +214,35 @@ export default function MasScreen() {
   const reporteRestaurantes = async () => {
     if (!topRest.length) return;
     setGenerando('restaurantes');
+
     const htmlRest = topRest.map((r, i) => `
       <tr><td>#${i + 1}</td><td>${r.nombre}</td><td>${r.tipo_cocina}</td>
       <td>$${r.ingresos.toLocaleString()}</td><td>${r.total_pedidos.toLocaleString()}</td>
       <td style="color:${r.tasa_cancelacion > 15 ? '#dc2626' : '#16a34a'}">${r.tasa_cancelacion}%</td>
       <td style="color:#2563eb;font-weight:bold">${r.comision_sugerida}%</td></tr>`).join('');
+
+    const htmlIngCoc = ingCocina.slice(0, 8).map(c => `
+      <tr><td>${c.tipo_cocina}</td><td>$${c.ingresos.toLocaleString()}</td>
+      <td>${c.total_pedidos.toLocaleString()}</td><td>$${c.ticket_promedio}</td></tr>`).join('');
+
     const htmlCoc = porCocina.slice(0, 8).map(c => `
       <tr><td>${c.tipo_cocina}</td><td>${c.pedidos.toLocaleString()}</td>
       <td>${c.participacion_pct}%</td>
       <td><span class="tag" style="background:${c.participacion_pct < 3 ? '#FEE2E2' : c.participacion_pct > 10 ? '#DCFCE7' : '#FEF3C7'};
         color:${c.participacion_pct < 3 ? '#991b1b' : c.participacion_pct > 10 ? '#166534' : '#92400E'};">
         ${c.participacion_pct < 3 ? 'BAJA' : c.participacion_pct > 10 ? 'ALTA' : 'MEDIA'}</span></td></tr>`).join('');
+
+    const htmlHoras = oportunidades.horas.map(h => `
+      <tr><td><strong>${h.dia}</strong></td><td>${h.label}</td>
+      <td>${h.pedidos} pedidos</td>
+      <td style="color:#dc2626;font-weight:bold">${Math.round(h.pct_del_promedio)}% del promedio</td></tr>`).join('');
+
+    const htmlOpProd = oportunidades.productos.map(p => `
+      <tr><td>${p.nombre_producto}</td><td>${p.categoria}</td><td>$${p.precio}</td>
+      <td>${p.restaurante}</td><td>${p.tipo_cocina} · ${p.colonia}</td>
+      <td style="color:#dc2626">${p.pedidos_entregados}</td>
+      <td><span class="tag" style="background:#FEF3C7;color:#D97706;">20% OFF</span></td></tr>`).join('');
+
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <style>${CSS_BASE}</style></head><body>
 <div class="hdr" style="background:#16a34a;">
@@ -239,9 +257,16 @@ export default function MasScreen() {
     ${htmlRest}
   </table>
   <div class="note" style="border-color:#16a34a;background:#F0FDF4;">
-    Los restaurantes con tasa de cancelacion mayor al 15% requieren auditoria operativa.
-    Los de participacion superior al 10% son candidatos a comision preferencial.
+    Restaurantes con cancelacion mayor al 15% requieren auditoria operativa.
+    Los de mayor volumen son candidatos a revision de comision preferencial.
   </div>
+</div>
+<div class="sec">
+  <h2 style="border-color:#16a34a;color:#16a34a;">Ingresos y ticket promedio por tipo de cocina</h2>
+  <table>
+    <tr style="background:#16a34a;"><th>Tipo de cocina</th><th>Ingresos totales</th><th>Pedidos</th><th>Ticket promedio</th></tr>
+    ${htmlIngCoc}
+  </table>
 </div>
 <div class="sec">
   <h2 style="border-color:#16a34a;color:#16a34a;">Participacion por tipo de cocina</h2>
@@ -251,18 +276,43 @@ export default function MasScreen() {
   </table>
   <div class="note" style="border-color:#F59E0B;background:#FFFBEB;">
     Tipos de cocina con menos del 3% de participacion requieren estrategia de marketing activa.
-    Considerar campanas de descuento o destacado en la app para aumentar visibilidad.
+    Considerar descuentos o destacado en la app para aumentar visibilidad.
   </div>
 </div>
+${oportunidades.horas.length > 0 ? `
+<div class="sec">
+  <h2 style="border-color:#D97706;color:#D97706;">Oportunidades de horario</h2>
+  <p style="color:#64748B;margin-bottom:10px;font-size:11px;">
+    Franjas de dia y hora con menor volumen en horario de operacion (7:00–23:00). El porcentaje indica
+    que parte de la demanda tipica recibe esa franja — 25% significa 4 veces menos pedidos que el promedio.
+  </p>
+  <table>
+    <tr style="background:#D97706;"><th>Dia</th><th>Horario</th><th>Pedidos historicos</th><th>Vs. promedio horario</th></tr>
+    ${htmlHoras}
+  </table>
+  ${oportunidades.productos.length > 0 ? `
+  <h2 style="border-color:#D97706;color:#D97706;margin-top:16px;">Productos sugeridos para esas franjas</h2>
+  <p style="color:#64748B;margin-bottom:10px;font-size:11px;">
+    Los menos pedidos de la plataforma. Activar un 20% de descuento en las horas de baja demanda les da visibilidad sin afectar el horario pico.
+  </p>
+  <table>
+    <tr style="background:#D97706;"><th>Producto</th><th>Categoria</th><th>Precio</th>
+    <th>Restaurante</th><th>Cocina · Colonia</th><th>Pedidos entregados</th><th>Promo</th></tr>
+    ${htmlOpProd}
+  </table>
+  <div class="note" style="border-color:#D97706;background:#FFFBEB;">
+    Configurar promocion de tiempo limitado para estos productos, visible solo en las horas de baja demanda.
+    Medir el aumento de pedidos en esas franjas la semana siguiente al lanzamiento.
+  </div>` : ''}
+</div>` : ''}
 <div class="sec">
   <h2 style="border-color:#16a34a;color:#16a34a;">Recomendaciones estrategicas</h2>
   <div class="note" style="border-color:#2563eb;background:#EFF6FF;">
-    EXPANSION: priorizar la incorporacion de restaurantes del tipo de cocina lider: ${porCocina[0]?.tipo_cocina ?? 'N/D'}.
-    Esto maximiza la oferta en la categoria con mayor demanda de usuarios.
+    EXPANSION: priorizar restaurantes del tipo de cocina lider: ${porCocina[0]?.tipo_cocina ?? 'N/D'}.
+    Maximiza la oferta en la categoria con mayor demanda de usuarios.
   </div>
   <div class="note" style="border-color:#16a34a;background:#F0FDF4;">
-    COMISIONES: revisar las comisiones de los Top 3 restaurantes por ingresos trimestralmente.
-    Aplicar escala: hasta $50k ingresos = 15%, de $50k a $100k = 12%, mas de $100k = 10%.
+    COMISIONES: revisar trimestralmente. Escala sugerida: hasta $50k = 15%, $50k–$100k = 12%, mas de $100k = 10%.
   </div>
 </div>
 <div class="footer">DiDi Food Oaxaca · Reporte de Restaurantes · Generado el ${fecha()}</div>
@@ -340,60 +390,95 @@ export default function MasScreen() {
   };
 
   const reporteUsuarios = async () => {
-    if (!metodosPago.length) return;
+    if (!metodosPago.length && !rfm.length) return;
     setGenerando('usuarios');
+
+    const coloresRfm: Record<string, string> = {
+      'Champions': '#166534', 'Leales': '#1D4ED8', 'Recientes': '#FF6B35',
+      'En riesgo': '#dc2626', 'Perdidos VIP': '#7C3AED', 'Ocasionales': '#64748B',
+    };
+    const htmlRfm = rfm.map(seg => `
+      <tr>
+        <td><strong style="color:${coloresRfm[seg.segmento] || '#333'}">${seg.segmento}</strong></td>
+        <td>${seg.usuarios.toLocaleString()}</td><td>${seg.porcentaje}%</td>
+        <td>${seg.frecuencia_promedio} pedidos</td>
+        <td>$${seg.ltv_promedio}</td>
+        <td>${seg.recencia_promedio_dias} dias</td>
+        <td style="font-size:10px;color:#64748B">${seg.accion}</td>
+      </tr>`).join('');
+
+    const htmlAdq = adquisicion.map(a => `
+      <tr>
+        <td>${a.canal}</td><td>${a.dispositivo}</td>
+        <td>${a.usuarios_registrados.toLocaleString()}</td>
+        <td>${a.primeras_ordenes.toLocaleString()}</td>
+        <td style="font-weight:bold;color:${a.conversion_pct >= 70 ? '#16a34a' : a.conversion_pct >= 40 ? '#D97706' : '#dc2626'}">${a.conversion_pct}%</td>
+        <td>$${a.ticket_promedio}</td>
+      </tr>`).join('');
+
     const htmlMp = metodosPago.map(m => `
       <tr><td>${m.metodo}</td><td>${m.total.toLocaleString()}</td>
       <td style="font-weight:bold">${m.porcentaje}%</td></tr>`).join('');
-    const htmlCat = categorias.map(c => `
-      <tr><td>${c.categoria}</td><td>${c.total_productos}</td>
-      <td>$${c.precio_promedio}</td><td>$${c.precio_minimo} – $${c.precio_maximo}</td>
-      <td style="color:#FF6B35;font-weight:bold">${c.candidatos_premium}</td></tr>`).join('');
-    const htmlPrem = premium.slice(0, 8).map(p => `
-      <tr><td>${p.producto}</td><td>${p.restaurante}</td><td>${p.tipo_cocina}</td>
-      <td style="color:#854D0E;font-weight:bold">$${p.precio}</td></tr>`).join('');
+
     const metodoDom = metodosPago[0];
     const metodoEfec = metodosPago.find(m => m.metodo === 'Efectivo');
+    const canalTop = adquisicion[0];
+    const segCritico = rfm.find(s => s.prioridad === 'alta');
+
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <style>${CSS_BASE}</style></head><body>
 <div class="hdr" style="background:#FF6B35;">
-  <h1>Reporte de Usuarios y Productos</h1>
+  <h1>Reporte de Usuarios</h1>
   <p>DiDi Food Oaxaca · ${fecha()}</p>
 </div>
+${rfm.length > 0 ? `
 <div class="sec">
-  <h2 style="border-color:#FF6B35;color:#FF6B35;">Distribucion de metodos de pago</h2>
+  <h2 style="border-color:#FF6B35;color:#FF6B35;">Segmentacion de clientes (RFM)</h2>
+  <p style="color:#64748B;margin-bottom:10px;font-size:11px;">
+    Clasificacion por Recencia, Frecuencia y Valor economico. Permite priorizar acciones de retencion y reactivacion por segmento.
+  </p>
+  <table>
+    <tr style="background:#FF6B35;"><th>Segmento</th><th>Clientes</th><th>%</th>
+    <th>Frecuencia prom.</th><th>LTV prom.</th><th>Recencia</th><th>Accion sugerida</th></tr>
+    ${htmlRfm}
+  </table>
+  ${segCritico ? `<div class="note" style="border-color:#dc2626;background:#FEF2F2;">
+    PRIORIDAD ALTA: el segmento "${segCritico.segmento}" (${segCritico.usuarios.toLocaleString()} clientes) requiere accion inmediata.
+    ${segCritico.accion}
+  </div>` : ''}
+</div>` : ''}
+${adquisicion.length > 0 ? `
+<div class="sec">
+  <h2 style="border-color:#FF6B35;color:#FF6B35;">Canales de adquisicion</h2>
+  <p style="color:#64748B;margin-bottom:10px;font-size:11px;">
+    Conversion = porcentaje de usuarios registrados que completaron al menos un pedido. Un canal con alta conversion es donde mas conviene invertir.
+  </p>
+  <table>
+    <tr style="background:#FF6B35;"><th>Canal</th><th>Dispositivo</th><th>Registrados</th>
+    <th>Primeros pedidos</th><th>Conversion</th><th>Ticket prom.</th></tr>
+    ${htmlAdq}
+  </table>
+  ${canalTop ? `<div class="note" style="border-color:#2563eb;background:#EFF6FF;">
+    Canal lider: ${canalTop.canal} con ${canalTop.conversion_pct}% de conversion.
+    Priorizar inversion publicitaria en este canal para maximizar el retorno.
+  </div>` : ''}
+</div>` : ''}
+<div class="sec">
+  <h2 style="border-color:#FF6B35;color:#FF6B35;">Metodos de pago</h2>
   <table>
     <tr style="background:#FF6B35;"><th>Metodo</th><th>Total pedidos</th><th>Participacion</th></tr>
     ${htmlMp}
   </table>
   ${metodoEfec && metodoEfec.porcentaje > 40 ? `<div class="note" style="border-color:#dc2626;background:#FEF2F2;">
-    RIESGO: ${metodoEfec.porcentaje}% de pagos en efectivo. Campana sugerida: descuento del 5% en proximo pedido al registrar metodo digital.
+    RIESGO: ${metodoEfec.porcentaje}% de pagos en efectivo. Campana sugerida: 5% de descuento en el siguiente pedido al registrar metodo digital.
     Meta: reducir efectivo a menos del 30% en los proximos 3 meses.
   </div>` : ''}
   <div class="note" style="border-color:#FF6B35;background:#FFF4ED;">
-    Metodo dominante: ${metodoDom?.metodo} (${metodoDom?.porcentaje}%). Asegurar infraestructura robusta para este metodo sin interrupciones.
-    Meta sugerida: 60% de pagos digitales en 6 meses para reducir costos operativos.
+    Metodo dominante: ${metodoDom?.metodo ?? 'N/D'} (${metodoDom?.porcentaje ?? 0}%).
+    Meta: 60% de pagos digitales en 6 meses para reducir costos operativos.
   </div>
 </div>
-<div class="sec">
-  <h2 style="border-color:#FF6B35;color:#FF6B35;">Analisis de categorias de productos</h2>
-  <table>
-    <tr style="background:#FF6B35;"><th>Categoria</th><th>Productos</th><th>Precio prom.</th><th>Rango</th><th>Premium</th></tr>
-    ${htmlCat}
-  </table>
-  <div class="note" style="border-color:#2563eb;background:#EFF6FF;">
-    Las categorias con mayor cantidad de candidatos premium tienen potencial de destacado en la app.
-    Agregar descripcion detallada y foto de calidad aumenta el ticket promedio hasta un 18%.
-  </div>
-</div>
-<div class="sec">
-  <h2 style="border-color:#FF6B35;color:#FF6B35;">Productos candidatos a seccion premium (precio &gt;= $200)</h2>
-  <table>
-    <tr style="background:#FF6B35;"><th>Producto</th><th>Restaurante</th><th>Tipo cocina</th><th>Precio</th></tr>
-    ${htmlPrem}
-  </table>
-</div>
-<div class="footer">DiDi Food Oaxaca · Reporte de Usuarios y Productos · Generado el ${fecha()}</div>
+<div class="footer">DiDi Food Oaxaca · Reporte de Usuarios · Generado el ${fecha()}</div>
 </body></html>`;
     await descargar(html, 'Reporte Usuarios DiDi Food');
     setGenerando(null);
@@ -441,8 +526,8 @@ export default function MasScreen() {
     },
     {
       id: 'usuarios',
-      titulo: 'Reporte de Usuarios y Productos',
-      sub: 'Metodos de pago, categorias, productos premium y estrategia de digitalizacion',
+      titulo: 'Reporte de Usuarios',
+      sub: 'Segmentacion RFM, canales de adquisicion, metodos de pago y recomendaciones de retencion',
       icon: 'people-outline',
       color: Brand.accent,
       bg: Brand.cardOrange,
@@ -514,58 +599,66 @@ export default function MasScreen() {
             </View>
           )}
 
-          {/* Combos sugeridos */}
-          {combos.length > 0 && (
-            <View style={[styles.card, { backgroundColor: Brand.cardPurple }]}>
+          {/* Oportunidades de horario */}
+          {oportunidades.horas.length > 0 && (
+            <View style={[styles.card, { backgroundColor: Brand.cardOrange }]}>
               <View style={styles.seccionHeader}>
-                <Ionicons name="gift-outline" size={18} color={Brand.purple} />
-                <Text style={[styles.seccionTitulo, { color: Brand.purple }]}>Combos para impulsar los 5 restaurantes con menos ventas</Text>
+                <Ionicons name="time-outline" size={18} color={Brand.accent} />
+                <Text style={[styles.seccionTitulo, { color: Brand.accent }]}>Oportunidades de horario</Text>
               </View>
               <Text style={styles.sub}>
-                Cada combo combina el platillo mas pedido del restaurante (ancla que el cliente ya conoce) con el menos pedido (que necesita visibilidad). Con un descuento del 15%, el cliente siente que aprovecha una oferta y el restaurante sube su ticket promedio.
+                Las 3 combinaciones de dia y hora con menor volumen de pedidos entregados, considerando solo horario de operacion (7:00 a 23:00). Calculado sobre todo el historial de la plataforma.
               </Text>
-              {combos.map((c, i) => (
-                <View key={i} style={[styles.alertaRow, { borderLeftColor: Brand.purple, backgroundColor: Brand.card, marginBottom: 10 }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={[styles.alertaLabelText, { color: Brand.purple }]}>{c.restaurante} · {c.tipo_cocina}</Text>
-                    <View style={{ backgroundColor: '#F5F3FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: Brand.purple }}>{c.descuento_pct}% OFF</Text>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 6 }}>
+                {oportunidades.horas.map((h, i) => (
+                  <View key={i} style={{ flex: 1, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#92400E' }}>{h.dia}</Text>
+                    <Text style={{ fontSize: 10, color: '#B45309', marginTop: 1 }}>{h.label}</Text>
+                    <View style={{ width: '100%', height: 1, backgroundColor: '#FDE68A', marginVertical: 5 }} />
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#D97706' }}>{h.pedidos}</Text>
+                    <Text style={{ fontSize: 9, color: '#92400E' }}>pedidos</Text>
+                    <Text style={{ fontSize: 9, color: Brand.red, marginTop: 3, fontWeight: '700' }}>{Math.round(h.pct_del_promedio)}% del prom.</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={{ fontSize: 10, color: Brand.subtext, fontStyle: 'italic', marginBottom: 14 }}>
+                % del promedio: que parte de la demanda tipica recibe esa franja. 25% significa que tiene 4 veces menos pedidos que una hora normal de operacion.
+              </Text>
+
+              <Text style={{ fontSize: 11, fontWeight: '800', color: Brand.accent, textTransform: 'uppercase', marginBottom: 4 }}>
+                Productos para promover en esas horas
+              </Text>
+              <Text style={[styles.sub, { marginBottom: 10 }]}>
+                Los menos pedidos de la plataforma con al menos un pedido entregado. Un 20% de descuento en las horas de baja demanda les da visibilidad sin impactar el horario pico.
+              </Text>
+
+              {oportunidades.productos.map((p, i) => (
+                <View key={i} style={[styles.alertaRow, { borderLeftColor: Brand.accent, backgroundColor: Brand.card, marginBottom: 8 }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: Brand.text }} numberOfLines={1}>{p.nombre_producto}</Text>
+                      <Text style={{ fontSize: 11, color: Brand.subtext, marginTop: 1 }}>{p.categoria}</Text>
+                      <Text style={{ fontSize: 11, color: Brand.subtext, marginTop: 1 }}>{p.restaurante} · {p.tipo_cocina}</Text>
+                      <Text style={{ fontSize: 10, color: Brand.subtext }}>{p.colonia}</Text>
+                      <Text style={{ fontSize: 10, color: Brand.red, marginTop: 3, fontWeight: '600' }}>Solo {p.pedidos_entregados} pedidos entregados</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: Brand.text }}>${p.precio}</Text>
+                      <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, marginTop: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#D97706' }}>20% OFF</Text>
+                      </View>
                     </View>
                   </View>
-                  <Text style={{ fontSize: 10, color: Brand.red, marginBottom: 8 }}>
-                    {c.pedidos_restaurante.toLocaleString()} pedidos totales · ${(c.ingresos_restaurante / 1000).toFixed(1)}k ingresos — uno de los menos activos
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <View style={{ flex: 1, backgroundColor: '#DCFCE7', borderRadius: 8, padding: 8 }}>
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: '#166534', textTransform: 'uppercase', marginBottom: 2 }}>El mas pedido</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: Brand.text }} numberOfLines={2}>{c.estrella}</Text>
-                      <Text style={{ fontSize: 10, color: Brand.subtext }}>{c.cat_estrella} · ${c.precio_estrella}</Text>
-                      <Text style={{ fontSize: 10, color: Brand.green, fontWeight: '600' }}>{c.ventas_estrella.toLocaleString()} uds vendidas</Text>
-                    </View>
-                    <Ionicons name="add-circle-outline" size={20} color={Brand.purple} />
-                    <View style={{ flex: 1, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8 }}>
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: '#92400E', textTransform: 'uppercase', marginBottom: 2 }}>El menos pedido</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: Brand.text }} numberOfLines={2}>{c.complemento ?? 'Sin segundo producto'}</Text>
-                      {c.complemento && <>
-                        <Text style={{ fontSize: 10, color: Brand.subtext }}>{c.cat_complemento} · ${c.precio_complemento}</Text>
-                        <Text style={{ fontSize: 10, color: '#D97706', fontWeight: '600' }}>{c.ventas_complemento.toLocaleString()} uds vendidas</Text>
-                      </>}
-                    </View>
-                  </View>
-                  {c.complemento && (
-                    <Text style={{ fontSize: 11, color: Brand.purple, fontWeight: '600' }}>
-                      Precio combo sugerido: ${c.precio_combo_sugerido}
-                      {'  '}<Text style={{ color: Brand.subtext, fontWeight: '400', textDecorationLine: 'line-through' }}>${(c.precio_estrella + c.precio_complemento).toFixed(2)}</Text>
-                    </Text>
-                  )}
                 </View>
               ))}
-              <View style={[styles.alertaRow, { borderLeftColor: Brand.purple, backgroundColor: Brand.bg }]}>
+
+              <View style={[styles.alertaRow, { borderLeftColor: Brand.accent, backgroundColor: Brand.bg }]}>
                 <View style={styles.alertaLabel}>
                   <Text style={styles.alertaLabelText}>COMO ACTIVARLO</Text>
                 </View>
-                <Text style={[styles.alertaTexto, { color: Brand.purple }]}>
-                  Publicar estos combos como "Oferta del dia" en la seccion de cada restaurante. El objetivo es que el cliente que ya iba a pedir el platillo popular agregue el segundo con descuento, aumentando el ingreso por pedido.
+                <Text style={[styles.alertaTexto, { color: Brand.accent }]}>
+                  Configurar una promocion de tiempo limitado para estos productos, visible solo en las horas de baja demanda. Coordinar con los restaurantes y medir el aumento de pedidos la semana siguiente.
                 </Text>
               </View>
             </View>
