@@ -438,40 +438,34 @@ app.get('/pedidos/por-estatus', async (req, res) => {
   }
 });
 
-// ─── PEDIDOS: CLIENTES NUEVOS (aproximación) ─────────────────────────────────
+// ─── PEDIDOS: CLIENTES NUEVOS (usa es_primera_orden) ─────────────────────────
 
 app.get('/pedidos/clientes-nuevos', async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      WITH primer_pedido AS (
-        SELECT id_usuario, MIN(fecha_pedido) AS primera_compra
-        FROM pedidos GROUP BY id_usuario
-      ),
-      nuevos AS (
-        SELECT id_usuario
-        FROM primer_pedido
-        WHERE DATE_TRUNC('month', primera_compra) = ${ULTIMO_MES}
+      WITH nuevos AS (
+        SELECT DISTINCT id_usuario
+        FROM pedidos
+        WHERE es_primera_orden = TRUE
+          AND DATE_TRUNC('month', fecha_pedido) = ${ULTIMO_MES}
       )
       SELECT
         COUNT(DISTINCT n.id_usuario) AS nuevos_clientes,
         COUNT(p.id_pedido)           AS pedidos_de_nuevos,
-        ROUND(AVG(p.subtotal)::NUMERIC, 2) AS ticket_promedio_nuevos
+        ROUND(COALESCE(AVG(p.subtotal), 0)::NUMERIC, 2) AS ticket_promedio_nuevos
       FROM nuevos n
       JOIN pedidos p ON p.id_usuario = n.id_usuario
         AND DATE_TRUNC('month', p.fecha_pedido) = ${ULTIMO_MES}
     `);
 
     const hist = await pool.query(`
-      WITH primer_pedido AS (
-        SELECT id_usuario, DATE_TRUNC('month', MIN(fecha_pedido)) AS mes_ingreso
-        FROM pedidos GROUP BY id_usuario
-      )
       SELECT
-        mes_ingreso,
+        DATE_TRUNC('month', fecha_pedido) AS mes_ingreso,
         COUNT(*) AS nuevos_clientes
-      FROM primer_pedido
-      GROUP BY mes_ingreso
-      ORDER BY mes_ingreso
+      FROM pedidos
+      WHERE es_primera_orden = TRUE
+      GROUP BY 1
+      ORDER BY 1
     `);
 
     const r = rows[0];
@@ -549,7 +543,6 @@ app.get('/pedidos/ratio-envio', async (req, res) => {
       FROM pedidos
       GROUP BY colonia_entrega, municipio_entrega
       ORDER BY envio_promedio DESC
-      LIMIT 15
     `);
 
     res.json({
@@ -1109,6 +1102,93 @@ app.get('/productos/top-vendidos', async (req, res) => {
       pedidos:            parseInt(r.pedidos_con_producto),
       precio_promedio:    parseFloat(r.precio_promedio),
       ingreso_total:      parseFloat(r.ingreso_total),
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── PRODUCTOS: COMBOS SUGERIDOS (restaurantes con menos ventas) ──────────────
+
+app.get('/productos/combos-sugeridos', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      WITH ventas_restaurante AS (
+        SELECT
+          r.id_restaurante,
+          r.nombre       AS restaurante,
+          r.tipo_cocina,
+          COALESCE(ROUND(SUM(p.total) FILTER (WHERE p.estatus_pedido = 'Entregado')::NUMERIC, 2), 0) AS ingresos_total,
+          COUNT(p.id_pedido) FILTER (WHERE p.estatus_pedido = 'Entregado')::INT AS total_pedidos
+        FROM restaurantes r
+        LEFT JOIN pedidos p ON p.id_restaurante = r.id_restaurante
+        GROUP BY r.id_restaurante, r.nombre, r.tipo_cocina
+      ),
+      bottom_rest AS (
+        SELECT *, ROW_NUMBER() OVER (ORDER BY ingresos_total ASC) AS rn
+        FROM ventas_restaurante
+        WHERE total_pedidos > 0
+        LIMIT 5
+      ),
+      ventas_producto AS (
+        SELECT
+          pr.id_producto,
+          pr.nombre_producto AS producto,
+          pr.categoria,
+          pr.precio,
+          pr.id_restaurante,
+          COALESCE(SUM(dp.cantidad)::INT, 0) AS unidades_vendidas,
+          ROW_NUMBER() OVER (PARTITION BY pr.id_restaurante ORDER BY COALESCE(SUM(dp.cantidad), 0) DESC) AS rank_mejor,
+          ROW_NUMBER() OVER (PARTITION BY pr.id_restaurante ORDER BY COALESCE(SUM(dp.cantidad), 0) ASC)  AS rank_peor
+        FROM productos pr
+        LEFT JOIN detalle_pedidos dp ON dp.id_producto = pr.id_producto
+        GROUP BY pr.id_producto, pr.nombre_producto, pr.categoria, pr.precio, pr.id_restaurante
+      ),
+      estrella AS (
+        SELECT * FROM ventas_producto WHERE rank_mejor = 1
+      ),
+      complemento AS (
+        SELECT * FROM ventas_producto WHERE rank_peor = 1
+      )
+      SELECT
+        br.rn AS combo_num,
+        br.restaurante,
+        br.tipo_cocina,
+        br.ingresos_total AS ingresos_restaurante,
+        br.total_pedidos  AS pedidos_restaurante,
+        e.producto        AS estrella,
+        e.categoria       AS cat_estrella,
+        e.precio          AS precio_estrella,
+        e.unidades_vendidas AS ventas_estrella,
+        c.producto        AS complemento,
+        c.categoria       AS cat_complemento,
+        c.precio          AS precio_complemento,
+        c.unidades_vendidas AS ventas_complemento,
+        ROUND(((e.precio + c.precio) * 0.85)::NUMERIC, 2) AS precio_combo_sugerido,
+        15 AS descuento_pct
+      FROM bottom_rest br
+      JOIN estrella    e ON e.id_restaurante = br.id_restaurante
+      LEFT JOIN complemento c ON c.id_restaurante = br.id_restaurante
+        AND c.id_producto != e.id_producto
+      ORDER BY combo_num
+    `);
+
+    res.json(rows.map(r => ({
+      combo_num:             parseInt(r.combo_num),
+      restaurante:           r.restaurante,
+      tipo_cocina:           r.tipo_cocina,
+      ingresos_restaurante:  parseFloat(r.ingresos_restaurante) || 0,
+      pedidos_restaurante:   parseInt(r.pedidos_restaurante) || 0,
+      estrella:              r.estrella,
+      cat_estrella:          r.cat_estrella,
+      precio_estrella:       parseFloat(r.precio_estrella),
+      ventas_estrella:       parseInt(r.ventas_estrella),
+      complemento:           r.complemento,
+      cat_complemento:       r.cat_complemento,
+      precio_complemento:    parseFloat(r.precio_complemento),
+      ventas_complemento:    parseInt(r.ventas_complemento) || 0,
+      precio_combo_sugerido: parseFloat(r.precio_combo_sugerido) || 0,
+      descuento_pct:         parseInt(r.descuento_pct),
     })));
   } catch (err) {
     res.status(500).json({ error: err.message });

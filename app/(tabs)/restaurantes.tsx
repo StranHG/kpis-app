@@ -103,6 +103,10 @@ export default function RestaurantesScreen() {
             <Text style={[styles.chipSmallText, { color: Brand.blue }]}>Cantidad: {cantidadDist}</Text>
           </TouchableOpacity>
         </View>
+        <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 4 }}>Cobertura geografica por colonia. Las zonas con pocos restaurantes son oportunidades de expansion para la plataforma.</Text>
+        <Text style={{ fontSize: 11, color: Brand.blue, marginBottom: 8, fontStyle: 'italic' }}>
+          {distribucion.length} colonias en total — esta es la cobertura geografica completa registrada en la plataforma, no un limite de visualizacion.
+        </Text>
         {distribucion.slice(0, cantidadDist).map((d, i) => (
           <View key={i} style={styles.distRow}>
             <View style={{ flex: 1 }}>
@@ -140,6 +144,10 @@ export default function RestaurantesScreen() {
             <Text style={styles.chipSmallText}>Cantidad: {cantidadCocina}</Text>
           </TouchableOpacity>
         </View>
+        <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 4 }}>Participacion de cada tipo de cocina en el total de pedidos. Indica que categorias tienen mayor demanda y donde conviene incorporar nuevos restaurantes.</Text>
+        <Text style={{ fontSize: 11, color: Brand.accent, marginBottom: 8, fontStyle: 'italic' }}>
+          {porCocina.length} tipos de cocina en total — esta es la variedad completa de categorias que opera la plataforma en Oaxaca, no hay mas disponibles.
+        </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
           <BarChart
             data={barDataCocina}
@@ -182,6 +190,7 @@ export default function RestaurantesScreen() {
             <Text style={[styles.chipSmallText, { color: Brand.green, borderColor: Brand.green }]}>Cantidad: {limit}</Text>
           </TouchableOpacity>
         </View>
+        <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 8 }}>Ordenados por ingresos generados. La comision sugerida se calcula automaticamente segun la participacion de cada restaurante en las ventas totales.</Text>
 
         {ranking.map((r, i) => (
           <View key={i} style={styles.rankCard}>
@@ -242,7 +251,7 @@ export default function RestaurantesScreen() {
             <Ionicons name="star-outline" size={18} color="#D97706" />
             <Text style={[styles.seccionTitulo, { color: '#D97706' }]}>Calificaciones reales (reseñas verificadas)</Text>
           </View>
-          <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 8 }}>Top 10 por calificacion promedio</Text>
+          <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 8 }}>Evaluaciones reales de usuarios tras recibir su pedido. El porcentaje positivo/negativo es mas util que el numero promedio para detectar problemas de calidad.</Text>
 
           {califRest.map((r, i) => {
             const color = r.nivel === 'warn' ? Brand.red : r.nivel === 'info' ? '#D97706' : Brand.green;

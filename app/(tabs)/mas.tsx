@@ -43,6 +43,7 @@ export default function MasScreen() {
   const [conductores,  setConductores]  = useState<any>(null);
   const [reactivacion, setReactivacion] = useState<any[]>([]);
   const [topVendidos,  setTopVendidos]  = useState<any[]>([]);
+  const [combos,       setCombos]       = useState<any[]>([]);
   const [rfm,          setRfm]          = useState<any[]>([]);
   const [adquisicion,  setAdquisicion]  = useState<any[]>([]);
   const [loading,             setLoading]             = useState(true);
@@ -106,7 +107,8 @@ export default function MasScreen() {
       fetchJSON(`${API}/productos/top-vendidos?limit=10`).catch(() => []),
       fetchJSON(`${API}/usuarios/segmentos`).catch(() => []),
       fetchJSON(`${API}/usuarios/adquisicion`).catch(() => []),
-    ]).then(([mp, cat, prem, ing, ped, ingr, cancel, tiempo, rest, coc, cond, reac, tv, rfmData, adq]) => {
+      fetchJSON(`${API}/productos/combos-sugeridos`).catch(() => []),
+    ]).then(([mp, cat, prem, ing, ped, ingr, cancel, tiempo, rest, coc, cond, reac, tv, rfmData, adq, cmb]) => {
       setMetodosPago(mp); setCategorias(cat); setPremium(prem); setIngCocina(ing);
       setKpisResumen({ pedidos: ped, ingresos: ingr, cancelaciones: cancel, tiempo });
       setTopRest(rest); setPorCocina(coc); setConductores(cond);
@@ -114,6 +116,7 @@ export default function MasScreen() {
       setTopVendidos(Array.isArray(tv) ? tv : []);
       setRfm(Array.isArray(rfmData) ? rfmData : []);
       setAdquisicion(Array.isArray(adq) ? adq : []);
+      setCombos(Array.isArray(cmb) ? cmb : []);
       setLoading(false);
     }).catch(() => { setError('Error cargando datos'); setLoading(false); });
   }, []);
@@ -476,7 +479,7 @@ export default function MasScreen() {
                 <Ionicons name="flame-outline" size={18} color={Brand.green} />
                 <Text style={[styles.seccionTitulo, { color: Brand.green }]}>Top productos mas vendidos</Text>
               </View>
-              <Text style={styles.sub}>Por unidades vendidas en pedidos entregados</Text>
+              <Text style={styles.sub}>Productos con mas unidades vendidas historicamente. Garantizar su disponibilidad permanente evita pedidos cancelados por falta de stock y maximiza ingresos.</Text>
               {topVendidos.map((p, i) => (
                 <View key={i} style={styles.prodRow}>
                   <View style={[styles.precioBadge, {
@@ -511,6 +514,63 @@ export default function MasScreen() {
             </View>
           )}
 
+          {/* Combos sugeridos */}
+          {combos.length > 0 && (
+            <View style={[styles.card, { backgroundColor: Brand.cardPurple }]}>
+              <View style={styles.seccionHeader}>
+                <Ionicons name="gift-outline" size={18} color={Brand.purple} />
+                <Text style={[styles.seccionTitulo, { color: Brand.purple }]}>Combos para impulsar los 5 restaurantes con menos ventas</Text>
+              </View>
+              <Text style={styles.sub}>
+                Cada combo combina el platillo mas pedido del restaurante (ancla que el cliente ya conoce) con el menos pedido (que necesita visibilidad). Con un descuento del 15%, el cliente siente que aprovecha una oferta y el restaurante sube su ticket promedio.
+              </Text>
+              {combos.map((c, i) => (
+                <View key={i} style={[styles.alertaRow, { borderLeftColor: Brand.purple, backgroundColor: Brand.card, marginBottom: 10 }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={[styles.alertaLabelText, { color: Brand.purple }]}>{c.restaurante} · {c.tipo_cocina}</Text>
+                    <View style={{ backgroundColor: '#F5F3FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: Brand.purple }}>{c.descuento_pct}% OFF</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 10, color: Brand.red, marginBottom: 8 }}>
+                    {c.pedidos_restaurante.toLocaleString()} pedidos totales · ${(c.ingresos_restaurante / 1000).toFixed(1)}k ingresos — uno de los menos activos
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <View style={{ flex: 1, backgroundColor: '#DCFCE7', borderRadius: 8, padding: 8 }}>
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: '#166534', textTransform: 'uppercase', marginBottom: 2 }}>El mas pedido</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: Brand.text }} numberOfLines={2}>{c.estrella}</Text>
+                      <Text style={{ fontSize: 10, color: Brand.subtext }}>{c.cat_estrella} · ${c.precio_estrella}</Text>
+                      <Text style={{ fontSize: 10, color: Brand.green, fontWeight: '600' }}>{c.ventas_estrella.toLocaleString()} uds vendidas</Text>
+                    </View>
+                    <Ionicons name="add-circle-outline" size={20} color={Brand.purple} />
+                    <View style={{ flex: 1, backgroundColor: '#FEF3C7', borderRadius: 8, padding: 8 }}>
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: '#92400E', textTransform: 'uppercase', marginBottom: 2 }}>El menos pedido</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: Brand.text }} numberOfLines={2}>{c.complemento ?? 'Sin segundo producto'}</Text>
+                      {c.complemento && <>
+                        <Text style={{ fontSize: 10, color: Brand.subtext }}>{c.cat_complemento} · ${c.precio_complemento}</Text>
+                        <Text style={{ fontSize: 10, color: '#D97706', fontWeight: '600' }}>{c.ventas_complemento.toLocaleString()} uds vendidas</Text>
+                      </>}
+                    </View>
+                  </View>
+                  {c.complemento && (
+                    <Text style={{ fontSize: 11, color: Brand.purple, fontWeight: '600' }}>
+                      Precio combo sugerido: ${c.precio_combo_sugerido}
+                      {'  '}<Text style={{ color: Brand.subtext, fontWeight: '400', textDecorationLine: 'line-through' }}>${(c.precio_estrella + c.precio_complemento).toFixed(2)}</Text>
+                    </Text>
+                  )}
+                </View>
+              ))}
+              <View style={[styles.alertaRow, { borderLeftColor: Brand.purple, backgroundColor: Brand.bg }]}>
+                <View style={styles.alertaLabel}>
+                  <Text style={styles.alertaLabelText}>COMO ACTIVARLO</Text>
+                </View>
+                <Text style={[styles.alertaTexto, { color: Brand.purple }]}>
+                  Publicar estos combos como "Oferta del dia" en la seccion de cada restaurante. El objetivo es que el cliente que ya iba a pedir el platillo popular agregue el segundo con descuento, aumentando el ingreso por pedido.
+                </Text>
+              </View>
+            </View>
+          )}
+
           <View style={[styles.card, { backgroundColor: Brand.cardBlue }]}>
             <View style={[styles.seccionHeader, { justifyContent: 'space-between' }]}>
               <View style={styles.seccionHeader}>
@@ -522,7 +582,7 @@ export default function MasScreen() {
                 <Text style={[styles.chipFiltroTxt, { color: Brand.blue }]}>Ver: {cantidadPremium}</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.sub}>Productos con precio mayor a $200 MXN</Text>
+            <Text style={styles.sub}>Productos con precio mayor a $200 MXN que podrian destacarse en una seccion especial de la app. Mostrarlos con foto y descripcion detallada aumenta el ticket promedio hasta un 18%.</Text>
             {premium.slice(0, cantidadPremium).map((p, i) => (
               <View key={i} style={styles.prodRow}>
                 <View style={{ flex: 1 }}>
@@ -580,6 +640,7 @@ export default function MasScreen() {
                 <Text style={[styles.chipFiltroTxt, { color: Brand.green }]}>Ver: {cantidadIngCocina}</Text>
               </TouchableOpacity>
             </View>
+            <Text style={styles.sub}>Ingresos generados por cada tipo de cocina. La cocina lider es donde mas conviene incorporar nuevos restaurantes para capitalizar la demanda existente.</Text>
             {ingCocina.slice(0, cantidadIngCocina).map((r, i) => (
               <View key={i} style={styles.ingRow}>
                 <Text style={styles.ingNombre} numberOfLines={1}>{r.tipo_cocina.substring(0, 9)}</Text>
@@ -614,7 +675,9 @@ export default function MasScreen() {
                 <Ionicons name="people-circle-outline" size={18} color={Brand.blue} />
                 <Text style={[styles.seccionTitulo, { color: Brand.blue }]}>Segmentacion RFM de usuarios</Text>
               </View>
-              <Text style={styles.sub}>Recencia · Frecuencia · Monetario</Text>
+              <Text style={styles.sub}>
+                Clasifica a los usuarios segun tres factores: hace cuanto hicieron su ultimo pedido (Recencia), con que frecuencia piden (Frecuencia) y cuanto gastan (Monetario). Cada segmento requiere una estrategia diferente.
+              </Text>
               {rfm.map((seg, i) => {
                 const segColor: Record<string, string> = {
                   'Champions': Brand.green, 'Leales': Brand.blue,
@@ -653,7 +716,7 @@ export default function MasScreen() {
                 <Ionicons name="funnel-outline" size={18} color={Brand.accent} />
                 <Text style={[styles.seccionTitulo, { color: Brand.accent }]}>Canal de adquisicion</Text>
               </View>
-              <Text style={styles.sub}>Conversion de registro a primera orden por canal</Text>
+              <Text style={styles.sub}>De donde vienen los usuarios que se registran y que porcentaje realiza su primera compra (conversion). Un canal con alta conversion es donde mas conviene invertir presupuesto de marketing.</Text>
               {adquisicion.map((a, i) => (
                 <View key={i} style={styles.catRow}>
                   <View style={{ flex: 1 }}>
@@ -689,6 +752,7 @@ export default function MasScreen() {
               <Ionicons name="card-outline" size={18} color={Brand.purple} />
               <Text style={[styles.seccionTitulo, { color: Brand.purple }]}>Metodos de pago</Text>
             </View>
+            <Text style={styles.sub}>Como prefieren pagar los usuarios. Un alto porcentaje en efectivo implica mayor riesgo operativo para conductores y costos de manejo. Meta recomendada: menos del 30% en efectivo.</Text>
             <View style={{ alignItems: 'center', marginVertical: 16 }}>
               <PieChart
                 data={pieData}
@@ -725,7 +789,7 @@ export default function MasScreen() {
                 </View>
                 <Text style={styles.alertaTexto}>
                   <Text style={{ fontWeight: '700' }}>{metodoEfectivo.porcentaje}% en efectivo</Text> — riesgo operativo alto.{'\n'}
-                  Accion: campana "Paga digital, gana puntos" con descuento del 5% en proximo pedido.
+                  Accion: campaña "Paga digital, gana puntos" con descuento del 5% en proximo pedido.
                   Meta: reducir efectivo a menos del 30% en 3 meses.
                 </Text>
               </View>

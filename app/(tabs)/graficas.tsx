@@ -92,8 +92,11 @@ export default function GraficasScreen() {
           <Ionicons name="time-outline" size={18} color={Brand.blue} />
           <Text style={[styles.hdrTxt, { color: Brand.blue }]}>Demanda por hora del dia</Text>
         </View>
+        <Text style={styles.sub}>
+          Promedio historico de pedidos segun la hora. Sirve para decidir cuantos conductores necesitas disponibles en cada franja horaria.
+        </Text>
         {horaPico && (
-          <Text style={styles.sub}>
+          <Text style={[styles.sub, { fontWeight: '600', marginTop: 2 }]}>
             Hora pico: {horaPico.hora}:00 h — {horaPico.pedidos.toLocaleString()} pedidos
           </Text>
         )}
@@ -124,7 +127,9 @@ export default function GraficasScreen() {
           <Ionicons name="trending-up-outline" size={18} color={Brand.green} />
           <Text style={[styles.hdrTxt, { color: Brand.green }]}>Tendencia — ultimos 14 dias</Text>
         </View>
-        <Text style={styles.sub}>Pedidos entregados por dia</Text>
+        <Text style={styles.sub}>
+          Pedidos entregados cada dia en las ultimas dos semanas. Util para detectar caidas o picos recientes y anticipar necesidades de flota.
+        </Text>
         {lineData.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
             <LineChart
@@ -153,6 +158,9 @@ export default function GraficasScreen() {
           <Ionicons name="trophy-outline" size={18} color={Brand.accent} />
           <Text style={[styles.hdrTxt, { color: Brand.accent }]}>Top 6 restaurantes por pedidos</Text>
         </View>
+        <Text style={styles.sub}>
+          Restaurantes con mas pedidos completados en todo el historial. Son los socios mas estrategicos de la plataforma.
+        </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
           <BarChart
             data={barRest}
@@ -183,6 +191,9 @@ export default function GraficasScreen() {
           <Ionicons name="pie-chart-outline" size={18} color={Brand.purple} />
           <Text style={[styles.hdrTxt, { color: Brand.purple }]}>Tasa de cancelacion</Text>
         </View>
+        <Text style={styles.sub}>
+          Proporcion de pedidos que no fueron entregados. El desglose por actor (cliente, restaurante, conductor) indica donde esta el problema operativo.
+        </Text>
         <View style={styles.pieRow}>
           <PieChart
             data={pieData}

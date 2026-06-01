@@ -47,8 +47,8 @@ export default function PedidosScreen() {
   const [cantidadZonasLentas,     setCantidadZonasLentas]     = useState(8);
   const [cantidadZonasLentasInput,setCantidadZonasLentasInput]= useState('8');
   const [modalZonasLentas,        setModalZonasLentas]        = useState(false);
-  const [cantidadRatioZonas,      setCantidadRatioZonas]      = useState(5);
-  const [cantidadRatioZonasInput, setCantidadRatioZonasInput] = useState('5');
+  const [cantidadRatioZonas,      setCantidadRatioZonas]      = useState(10);
+  const [cantidadRatioZonasInput, setCantidadRatioZonasInput] = useState('10');
   const [modalRatioZonas,         setModalRatioZonas]         = useState(false);
 
   useEffect(() => {
@@ -216,6 +216,7 @@ export default function PedidosScreen() {
       {/* SECCION 1: Total pedidos */}
       <View style={[styles.card, { backgroundColor: Brand.cardBlue }]}>
         <SeccionHeader titulo="Total de pedidos entregados" icon="bar-chart-outline" color={Brand.blue} />
+        <Text style={styles.sub}>Pedidos completados por mes en el año seleccionado. Establece una meta para ver el avance en la grafica: verde = alcanza la meta, azul = por debajo.</Text>
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={[styles.statVal, { color: Brand.blue }]}>{totalAnio.toLocaleString()}</Text>
@@ -320,6 +321,7 @@ export default function PedidosScreen() {
       {porEstatus && (
         <View style={[styles.card, { backgroundColor: Brand.cardGreen }]}>
           <SeccionHeader titulo="Pedidos por estatus" icon="layers-outline" color={Brand.green} />
+          <Text style={styles.sub}>Como termino cada pedido: entregado, cancelado (por quien) o pendiente. Una cancelacion alta indica problemas operativos que conviene revisar por zona o restaurante.</Text>
           {porEstatus.resumen.map((r: any, i: number) => (
             <View key={i} style={styles.estatusRow}>
               <Text style={styles.estatusLabel} numberOfLines={1}>{r.estatus}</Text>
@@ -337,6 +339,7 @@ export default function PedidosScreen() {
           <Text style={[styles.seccionTitulo, { marginTop: 16, fontSize: 12, color: Brand.green }]}>
             Clientes nuevos este mes
           </Text>
+          <Text style={[styles.sub, { marginBottom: 8 }]}>Usuarios cuyo primer pedido en la plataforma fue durante este periodo. Sirve para medir el ritmo de incorporacion de clientes nuevos.</Text>
           {clientes && (
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
@@ -359,8 +362,9 @@ export default function PedidosScreen() {
       {/* SECCION 3: Tiempos de entrega + detalle por zona */}
       <View style={[styles.card, { backgroundColor: Brand.cardOrange }]}>
         <SeccionHeader titulo="Tiempos de entrega (min)" icon="time-outline" color={Brand.accent} />
+        <Text style={styles.sub}>Minutos promedio desde que el usuario confirma el pedido hasta que lo recibe. Meta recomendada: menos de 45 min. Toca una zona para comparar conductores.</Text>
         {tiempoPromAnio && (
-          <Text style={styles.sub}>Promedio {anioSel}: {tiempoPromAnio} min</Text>
+          <Text style={[styles.sub, { fontWeight: '600', marginTop: 2 }]}>Promedio {anioSel}: {tiempoPromAnio} min</Text>
         )}
         {lineDataTiempos.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
@@ -496,7 +500,7 @@ export default function PedidosScreen() {
       {/* SECCION 4: Ratio envio / subtotal */}
       <View style={[styles.card, { backgroundColor: Brand.cardPurple }]}>
         <SeccionHeader titulo="Ratio costo envio / subtotal" icon="trending-up-outline" color={Brand.purple} />
-        <Text style={styles.sub}>Porcentaje que representa el envio sobre el pedido</Text>
+        <Text style={styles.sub}>Porcentaje que representa el costo de envio respecto al subtotal del pedido. Cuando supera el 30%, los usuarios tienden a cancelar o no repetir. Ideal mantenerlo por debajo del 20%.</Text>
         {lineDataRatio.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
             <LineChart
@@ -545,6 +549,7 @@ export default function PedidosScreen() {
       {propinas && (
         <View style={[styles.card, { backgroundColor: Brand.cardYellow }]}>
           <SeccionHeader titulo="Analisis de propinas" icon="gift-outline" color="#D97706" />
+          <Text style={styles.sub}>Porcentaje de pedidos donde el usuario deja propina voluntaria y cuanto en promedio. Es un indicador directo de satisfaccion con el conductor y motiva a la flota activa.</Text>
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={[styles.statVal, { color: '#D97706' }]}>{propinas.global.tasa_pct}%</Text>

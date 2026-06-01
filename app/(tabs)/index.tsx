@@ -105,6 +105,7 @@ export default function InicioScreen() {
       {alertas.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Alertas del periodo</Text>
+          <Text style={{ fontSize: 11, color: '#94A3B8', marginBottom: 6 }}>Situaciones que requieren atencion inmediata basadas en los datos del mes actual</Text>
           {alertas.map((a, i) => <AlertaCard key={i} {...a} />)}
         </View>
       )}

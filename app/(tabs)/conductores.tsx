@@ -154,6 +154,7 @@ export default function ConductoresScreen() {
             <Ionicons name="people-outline" size={18} color={Brand.purple} />
             <Text style={[styles.seccionTitulo, { color: Brand.purple }]}>Resumen de la flota</Text>
           </View>
+          <Text style={styles.sub}>Estado actual de todos los conductores registrados. Solo los activos pueden recibir pedidos.</Text>
           <View style={styles.grid3}>
             <View style={[styles.statCircle, { backgroundColor: Brand.green }]}>
               <Text style={styles.statCircleNum}>{resumen.activos}</Text>
@@ -188,6 +189,7 @@ export default function ConductoresScreen() {
           <Ionicons name="car-outline" size={18} color={Brand.blue} />
           <Text style={[styles.seccionTitulo, { color: Brand.blue }]}>Volumen por tipo de vehiculo</Text>
         </View>
+        <Text style={styles.sub}>Pedidos completados por cada tipo de vehiculo. Indica cual tiene mayor demanda y donde conviene enfocar el reclutamiento.</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
           <BarChart
             data={barVehiculo}
@@ -353,7 +355,7 @@ export default function ConductoresScreen() {
             <Ionicons name="star-outline" size={18} color="#D97706" />
             <Text style={[styles.seccionTitulo, { color: '#D97706' }]}>Calificaciones reales — Top y bottom</Text>
           </View>
-          <Text style={styles.sub}>Basado en reseñas verificadas de usuarios</Text>
+          <Text style={styles.sub}>Calificaciones otorgadas por usuarios despues de cada entrega, distintas al promedio calculado al registro. Reflejan el desempeno real en operacion activa.</Text>
 
           {/* Top 3 */}
           {califConductores.slice(0, 3).map((c, i) => (
@@ -429,6 +431,7 @@ export default function ConductoresScreen() {
             <Ionicons name="shield-outline" size={18} color={Brand.accent} />
             <Text style={[styles.seccionTitulo, { color: Brand.accent }]}>Sanciones por gravedad</Text>
           </View>
+          <Text style={styles.sub}>Infracciones registradas clasificadas por nivel: Alta implica suspension inmediata, Media requiere advertencia formal, Baja queda como nota en el expediente.</Text>
           <View style={styles.grid3}>
             {sancDetalle.por_gravedad.map((g: any, i: number) => {
               const colores: Record<string, string> = { Alta: Brand.red, Media: '#D97706', Baja: Brand.green };
@@ -474,7 +477,7 @@ export default function ConductoresScreen() {
             <Text style={styles.chipSmallText}>Cantidad: {cantidad}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.sub}>Priorizados por calificacion historica</Text>
+        <Text style={styles.sub}>Conductores inactivos o sancionados con buen historial de entregas. Recuperar flota existente con un bono es mas economico que reclutar nuevos conductores.</Text>
 
         {reactivacion.map((c, i) => (
           <View key={i} style={styles.reacCard}>
