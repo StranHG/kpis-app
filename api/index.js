@@ -65,7 +65,7 @@ app.get('/kpi/total-pedidos', async (req, res) => {
       mes_anterior:    parseInt(r.mes_anterior),
       mejor_mes:       parseInt(r.mejor_mes) || 0,
       variacion:       variacion(r.mes_actual, r.mes_anterior),
-      periodo:         r.periodo.trim(),
+      periodo:         r.periodo?.trim() ?? '',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -286,7 +286,6 @@ app.get('/kpi/pedidos-colonia', async (req, res) => {
 
 app.get('/kpi/ingresos-cocina', async (req, res) => {
   try {
-    const ULTIMO_MES = `(SELECT DATE_TRUNC('month', fecha_pedido) FROM pedidos GROUP BY 1 HAVING COUNT(*) > 1000 ORDER BY 1 DESC LIMIT 1)`;
     const { rows } = await pool.query(`
       SELECT
         tipo_cocina,
@@ -373,10 +372,10 @@ app.get('/kpi/conductores', async (req, res) => {
         COUNT(*) FILTER (WHERE estatus = 'Activo')     AS activos,
         COUNT(*) FILTER (WHERE estatus = 'Inactivo')   AS inactivos,
         COUNT(*) FILTER (WHERE estatus = 'Sancionado') AS sancionados,
-        (SELECT ROUND(AVG(calificacion_conductor)::NUMERIC, 2)
+        (SELECT ROUND(AVG(calificacion_cond)::NUMERIC, 2)
          FROM calificaciones
          WHERE DATE_TRUNC('month', fecha) = ${ULTIMO_MES}
-           AND calificacion_conductor IS NOT NULL
+           AND calificacion_cond IS NOT NULL
         ) AS calificacion_mes_actual
       FROM conductores
     `);
@@ -1113,7 +1112,6 @@ app.get('/conductores/tiempos-por-zona', async (req, res) => {
 app.get('/productos/top-vendidos', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 15;
-    const ULTIMO_MES = `(SELECT DATE_TRUNC('month', fecha_pedido) FROM pedidos GROUP BY 1 HAVING COUNT(*) > 1000 ORDER BY 1 DESC LIMIT 1)`;
     const { rows } = await pool.query(`
       SELECT
         pr.nombre_producto,
@@ -1123,7 +1121,7 @@ app.get('/productos/top-vendidos', async (req, res) => {
         SUM(dp.cantidad)::INT            AS unidades_vendidas,
         COUNT(DISTINCT dp.id_pedido)     AS pedidos_con_producto,
         ROUND(AVG(dp.precio_unitario)::NUMERIC, 2) AS precio_promedio,
-        ROUND(SUM(dp.subtotal_linea)::NUMERIC, 2)  AS ingreso_total,
+        ROUND(SUM(dp.cantidad * dp.precio_unitario)::NUMERIC, 2)  AS ingreso_total,
         TO_CHAR(${ULTIMO_MES}, 'Month YYYY') AS periodo
       FROM detalle_pedidos dp
       JOIN productos   pr ON pr.id_producto    = dp.id_producto
@@ -1415,9 +1413,9 @@ app.get('/calificaciones/conductores', async (req, res) => {
         c.zona_operacion,
         c.estatus,
         COUNT(cal.id_calificacion)                         AS total_reseñas,
-        ROUND(AVG(cal.calificacion_conductor)::NUMERIC, 2) AS calificacion_real,
-        COUNT(*) FILTER (WHERE cal.calificacion_conductor >= 4) AS reseñas_positivas,
-        COUNT(*) FILTER (WHERE cal.calificacion_conductor <= 2) AS reseñas_negativas,
+        ROUND(AVG(cal.calificacion_cond)::NUMERIC, 2) AS calificacion_real,
+        COUNT(*) FILTER (WHERE cal.calificacion_cond >= 4) AS reseñas_positivas,
+        COUNT(*) FILTER (WHERE cal.calificacion_cond <= 2) AS reseñas_negativas,
         TO_CHAR(${ULTIMO_MES}, 'Month YYYY') AS periodo
       FROM conductores c
       JOIN calificaciones cal ON cal.id_conductor = c.id_conductor
