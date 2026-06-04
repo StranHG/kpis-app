@@ -178,7 +178,7 @@ export default function MasScreen() {
   <div class="kpi" style="border-color:${cancelaciones.tasa_actual > 15 ? '#dc2626' : '#16a34a'};">
     <div class="lbl">Tasa de cancelacion</div>
     <div class="val" style="color:${cancelaciones.tasa_actual > 15 ? '#dc2626' : '#16a34a'};">${cancelaciones.tasa_actual}%</div>
-    <div class="tr">${cancelaciones.variacion >= 0 ? '+' : ''}${cancelaciones.variacion}% vs mes ant. · ${cancelaciones.total_cancelados.toLocaleString()} cancelados</div>
+    <div class="tr">${cancelaciones.variacion >= 0 ? '+' : ''}${cancelaciones.variacion}% vs mes anterior</div>
   </div>
   <div class="kpi" style="border-color:${tiempo.mes_actual > 50 ? '#dc2626' : '#FF6B35'};">
     <div class="lbl">Tiempo entrega promedio</div>
@@ -299,16 +299,16 @@ export default function MasScreen() {
     const cocLider    = porCocina[0];
     const cocSegunda  = porCocina[1];
     const cocinasBaja = porCocina.filter((c: any) => c.participacion_pct < 3).map((c: any) => c.tipo_cocina).slice(0, 4);
-    const tier1 = topRest.filter((r: any) => r.ingresos < 50000).length;
-    const tier2 = topRest.filter((r: any) => r.ingresos >= 50000 && r.ingresos < 100000).length;
-    const tier3 = topRest.filter((r: any) => r.ingresos >= 100000 && r.ingresos < 200000).length;
-    const tier4 = topRest.filter((r: any) => r.ingresos >= 200000).length;
+    const tier1 = topRest.filter((r: any) => r.ingresos < 10000).length;
+    const tier2 = topRest.filter((r: any) => r.ingresos >= 10000 && r.ingresos < 30000).length;
+    const tier3 = topRest.filter((r: any) => r.ingresos >= 30000 && r.ingresos < 50000).length;
+    const tier4 = topRest.filter((r: any) => r.ingresos >= 50000).length;
 
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <style>${CSS_BASE}</style></head><body>
 <div class="hdr" style="background:#16a34a;">
   <h1>Reporte de Restaurantes</h1>
-  <p>DiDi Food Oaxaca · ${topRest[0]?.periodo || porCocina[0]?.periodo || ''} · Generado el ${fecha()}</p>
+  <p>DiDi Food Oaxaca${topRest[0]?.periodo ? ` · ${topRest[0].periodo}` : porCocina[0]?.periodo ? ` · ${porCocina[0].periodo}` : ''} · Generado el ${fecha()}</p>
 </div>
 <div class="sec">
   <h2 style="border-color:#16a34a;color:#16a34a;">Ranking por ingresos — Top ${topRest.length} <span style="font-size:11px;font-weight:normal;color:#64748B;">— datos del periodo ${topRest[0]?.periodo || ''}</span></h2>
@@ -380,11 +380,11 @@ ${oportunidades.horas.length > 0 ? `
   <div class="note" style="border-color:#16a34a;background:#F0FDF4;">
     <strong>ESCALA DE COMISIONES SUGERIDA</strong> (revision trimestral)<br/>
     <em style="color:#64748B;font-size:10px;">Base: ingresos generados por el restaurante en el periodo ${topRest[0]?.periodo || 'actual'} (pedidos entregados). El porcentaje es la comision que el restaurante paga a DiDi Food sobre cada pedido entregado. La escala se revisa trimestralmente con base en el historial acumulado.</em><br/><br/>
-    &bull; Hasta $50,000 en ingresos del periodo → <strong>15% de comision a DiDi Food</strong>: restaurantes en incorporacion o crecimiento inicial. La comision mas alta cubre el soporte de onboarding y la visibilidad en la app durante la etapa de arranque.<br/>
-    &bull; $50,001 – $100,000 en ingresos del periodo → <strong>12% de comision a DiDi Food</strong>: restaurantes consolidados con flujo estable. La reduccion del 3% incentiva mayor volumen sin afectar la rentabilidad de la plataforma.<br/>
-    &bull; $100,001 – $200,000 en ingresos del periodo → <strong>10% de comision a DiDi Food</strong>: aliados de alto rendimiento. Comision preferencial como reconocimiento al volumen generado y para reducir el riesgo de desvinculacion.<br/>
-    &bull; Mas de $200,000 en ingresos del periodo → <strong>8% de comision a DiDi Food</strong>: socios estrategicos. Negociar condiciones personalizadas que pueden incluir exclusividad de categoria, posicion destacada en la app o co-inversion en campanas.<br/>
-    <em>Distribucion actual en el ranking: ${tier1} restaurante${tier1 !== 1 ? 's' : ''} al 15% · ${tier2} al 12% · ${tier3} al 10% · ${tier4} al 8%.</em>
+    &bull; Hasta $10,000 en ingresos del periodo → <strong>15% de comision a DiDi Food</strong>: restaurantes en etapa inicial. La comision cubre el soporte de incorporacion y la visibilidad en la app durante el arranque.<br/>
+    &bull; $10,001 – $30,000 en ingresos del periodo → <strong>12% de comision a DiDi Food</strong>: restaurantes consolidados con flujo estable. La reduccion incentiva mayor volumen sin afectar la rentabilidad de la plataforma.<br/>
+    &bull; $30,001 – $50,000 en ingresos del periodo → <strong>10% de comision a DiDi Food</strong>: restaurantes de alto rendimiento. Comision preferencial como reconocimiento al volumen generado.<br/>
+    &bull; Mas de $50,000 en ingresos del periodo → <strong>8% de comision a DiDi Food</strong>: socios estrategicos. Se pueden negociar condiciones adicionales como posicion destacada en la app o participacion en campanas.<br/>
+    ${tier1 + tier2 + tier3 + tier4 > 0 ? `<em>Distribucion en el ranking: ${tier1} restaurante${tier1 !== 1 ? 's' : ''} al 15% · ${tier2} al 12% · ${tier3} al 10% · ${tier4} al 8%.</em>` : ''}
   </div>
 </div>
 <div class="footer">DiDi Food Oaxaca · Reporte de Restaurantes · Generado el ${fecha()}</div>
@@ -409,7 +409,7 @@ ${oportunidades.horas.length > 0 ? `
       <td>${c.bono_sugerido}</td></tr>`).join('');
     const htmlVehiculo = porVehiculo.map((v: any) => `
       <tr><td>${v.tipo_vehiculo}</td><td>${v.total}</td><td>${v.activos}</td>
-      <td>${v.calificacion}</td><td>${v.pedidos.toLocaleString()}</td>
+      <td>${v.pedidos.toLocaleString()}</td>
       <td>${v.tiempo_promedio > 0 ? v.tiempo_promedio + ' min' : 'Sin datos'}</td></tr>`).join('');
     const htmlZona = porZona.map((z: any) => `
       <tr><td>${z.zona}</td><td>${z.conductores}</td><td>${z.activos}</td>
@@ -421,7 +421,7 @@ ${oportunidades.horas.length > 0 ? `
 <style>${CSS_BASE}</style></head><body>
 <div class="hdr" style="background:#7C3AED;">
   <h1>Reporte de Conductores</h1>
-  <p>DiDi Food Oaxaca · ${porVehiculo[0]?.periodo || porZona[0]?.periodo || ''} · Generado el ${fecha()}</p>
+  <p>DiDi Food Oaxaca${porVehiculo[0]?.periodo ? ` · ${porVehiculo[0].periodo}` : porZona[0]?.periodo ? ` · ${porZona[0].periodo}` : ''} · Generado el ${fecha()}</p>
 </div>
 <div class="grid2">
   <div class="kpi" style="border-color:#16a34a;">
@@ -449,7 +449,7 @@ ${oportunidades.horas.length > 0 ? `
   <h2 style="border-color:#7C3AED;color:#7C3AED;">Rendimiento por tipo de vehiculo <span style="font-size:11px;font-weight:normal;color:#64748B;">— datos del periodo ${porVehiculo[0]?.periodo || ''}</span></h2>
   <p style="color:#64748B;margin-bottom:10px;font-size:11px;">Pedidos y tiempo de entrega del periodo actual (${porVehiculo[0]?.periodo || 'mes en curso'}) por tipo de vehiculo. "Activos hoy" refleja el estado actual de la flota. Permite decidir en que perfil conviene enfocar el reclutamiento.</p>
   <table>
-    <tr style="background:#7C3AED;"><th>Vehiculo</th><th>Total</th><th>Activos hoy</th><th>Calif. prom.</th><th>Pedidos (periodo)</th><th>T. entrega prom.</th></tr>
+    <tr style="background:#7C3AED;"><th>Vehiculo</th><th>Total</th><th>Activos hoy</th><th>Pedidos (periodo)</th><th>T. entrega prom.</th></tr>
     ${htmlVehiculo}
   </table>
 </div>

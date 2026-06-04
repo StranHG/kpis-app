@@ -110,7 +110,7 @@ export default function RestaurantesScreen() {
           </View>
           <TouchableOpacity onPress={() => setModalDist(true)} style={[styles.chipSmall, { borderColor: Brand.blue }]}>
             <Ionicons name="options-outline" size={14} color={Brand.blue} />
-            <Text style={[styles.chipSmallText, { color: Brand.blue }]}>Cantidad: {cantidadDist}</Text>
+            <Text style={[styles.chipSmallText, { color: Brand.blue }]}>Ver: {cantidadDist}</Text>
           </TouchableOpacity>
         </View>
         <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 4 }}>Pedidos recibidos por colonia durante {periodo || 'el periodo actual'}. La cantidad de restaurantes por zona es la cobertura total registrada en la plataforma.</Text>
@@ -154,7 +154,7 @@ export default function RestaurantesScreen() {
           </View>
           <TouchableOpacity onPress={() => setModalCocina(true)} style={styles.chipSmall}>
             <Ionicons name="options-outline" size={14} color={Brand.accent} />
-            <Text style={styles.chipSmallText}>Cantidad: {cantidadCocina}</Text>
+            <Text style={styles.chipSmallText}>Ver: {cantidadCocina}</Text>
           </TouchableOpacity>
         </View>
         <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 4 }}>Participacion de cada tipo de cocina en los pedidos de {periodo || 'el periodo actual'}. Indica que categorias tuvieron mayor demanda este mes.</Text>
@@ -203,7 +203,7 @@ export default function RestaurantesScreen() {
           </View>
           <TouchableOpacity onPress={() => setLimitModal(true)} style={styles.chipSmall}>
             <Ionicons name="options-outline" size={14} color={Brand.green} />
-            <Text style={[styles.chipSmallText, { color: Brand.green, borderColor: Brand.green }]}>Cantidad: {limit}</Text>
+            <Text style={[styles.chipSmallText, { color: Brand.green, borderColor: Brand.green }]}>Ver: {limit}</Text>
           </TouchableOpacity>
         </View>
         <Text style={{ fontSize: 11, color: Brand.subtext, marginBottom: 8 }}>Ordenados por ingresos de {periodo || 'el periodo actual'}. La comision sugerida se calcula segun la participacion de cada restaurante en las ventas del mes.</Text>

@@ -253,7 +253,7 @@ export default function ConductoresScreen() {
           >
             <Ionicons name="options-outline" size={14} color={Brand.green} />
             <Text style={[styles.chipSmallText, { color: Brand.green }]}>
-              {cantidadZonas > 0 ? `Mostrando: ${Math.min(cantidadZonas, porZona.length)}` : `Todas (${porZona.length})`}
+              {cantidadZonas > 0 ? `Ver: ${Math.min(cantidadZonas, porZona.length)}` : `Ver: todas`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -309,7 +309,7 @@ export default function ConductoresScreen() {
               style={[styles.chipSmall, { borderColor: Brand.red }]}
             >
               <Ionicons name="options-outline" size={14} color={Brand.red} />
-              <Text style={[styles.chipSmallText, { color: Brand.red }]}>Cantidad: {cantidadSanc}</Text>
+              <Text style={[styles.chipSmallText, { color: Brand.red }]}>Ver: {cantidadSanc}</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.sub}>
@@ -510,7 +510,7 @@ export default function ConductoresScreen() {
           </View>
           <TouchableOpacity onPress={() => setModalCant(true)} style={styles.chipSmall}>
             <Ionicons name="options-outline" size={14} color={Brand.accent} />
-            <Text style={styles.chipSmallText}>Cantidad: {cantidad}</Text>
+            <Text style={styles.chipSmallText}>Ver: {cantidad}</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.sub}>Conductores inactivos o sancionados con buen historial de entregas. Recuperar flota existente con un bono es mas economico que reclutar nuevos conductores.</Text>
