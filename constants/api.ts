@@ -1,7 +1,9 @@
 import Constants from 'expo-constants';
 
-const host = Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost';
-export const API = `http://${host}:3000`;
+const host = Constants.expoConfig?.hostUri?.split(':')[0];
+export const API = host
+  ? `http://${host}:3000`
+  : 'https://kpis-app-v2-production.up.railway.app';
 
 export const fetchJSON = (url: string) => {
   const ctrl  = new AbortController();
