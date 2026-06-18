@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "kpis-app",
-    "slug": "kpis-app",
+    "name": "didiFood-gerencial",
+    "slug": "didifood-gerencial",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kpisapp",
+    "scheme": "didifoodapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "package": "com.didifood.kpisapp",
+      "package": "com.didifood.didiFoodgerencial",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
